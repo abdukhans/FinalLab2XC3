@@ -102,7 +102,7 @@ def mystery(G):
         for i in range(n):
             for j in range(n):
                 if d[i][j] > d[i][k] + d[k][j]: 
-                    d[i][j] = d[i][k] + d[k][j]
+                    d[i][j] = d[i][k] + d[k][j]          
     return d
 
 def init_d(G):
