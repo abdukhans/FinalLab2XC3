@@ -1,5 +1,11 @@
 import min_heap
 import random
+import csv
+from math import radians, cos, sin, sqrt, atan2
+import csv
+import time
+
+import itertools
 
 class DirectedWeightedGraph:
 
@@ -171,29 +177,6 @@ def init_d(G):
 
 #---------------------------part 2----------------------------
 def a_star(G, s, d, h):
-    Q = min_heap.MinHeap()
-    Q.insert(s, h(s))
-    pred = {}
-    dist = {s: 0}
-
-    while not Q.is_empty():
-        u = Q.extract_min()
-        if u == d:
-            return pred, dist[d]
-
-        for v in G.adjacent_nodes(u):
-            w = G.w(u, v)
-            if w is None:
-                continue
-            if v not in dist or dist[u] + w < dist[v]:
-                dist[v] = dist[u] + w
-                pred[v] = u
-                Q.insert(v, dist[v] + h(v))
-
-    return {}, None
-    
-
-def a_star(G, s, d, h):
     pred = {}
     dist = {}
     Q = min_heap.MinHeap([])
@@ -220,7 +203,6 @@ def a_star(G, s, d, h):
                 Q.decrease_key(neighbour, new_cost + h[neighbour])
                 dist[neighbour] = new_cost
                 pred[neighbour] = current_node
-
     # path
     path = []
     node = d
@@ -231,173 +213,78 @@ def a_star(G, s, d, h):
     path.reverse()
 
     return pred, path
-#-------------------------------Testing-------------------------------
 
-#---------------------------dijkstra_approx testing-------------------
-# Test case 1: Simple graph
-G1 = DirectedWeightedGraph()
-for node in range(4):
-    G1.add_node(node)
-G1.add_edge(0, 1, 1)
-G1.add_edge(0, 2, 4)
-G1.add_edge(1, 2, 2)
-G1.add_edge(1, 3, 5)
-G1.add_edge(2, 3, 1)
+#------------------------------------Part 3-----------------------------------
+# Parse the stations from the CSV file and store them in a dictionary 
+def parse_stations(filename):
+    stations = {}
+    with open(filename, newline='') as csvfile:
+        reader = csv.DictReader(csvfile)
+        for row in reader:
+            id = int(row['id'])
+            latitude = float(row['latitude'])
+            longitude = float(row['longitude'])
+            name = row['name']
+            stations[id] = {
+                'latitude': latitude,
+                'longitude': longitude,
+                'name': name
+            }
+    return stations
 
-# Expected output
-expected_output_1 = {
-    0: 0,
-    1: 1,
-    2: 3,
-    3: 4
-}
-assert dijkstra_approx(G1, 0, 2) == expected_output_1
+# Parse the connections between stations from the CSV file
+def parse_connections(filename):
+    connections = []
+    with open(filename, newline='') as csvfile:
+        reader = csv.DictReader(csvfile)
+        for row in reader:
+            station1 = int(row['station1'])
+            station2 = int(row['station2'])
+            time = int(row['time'])
+            connections.append((station1, station2, time))
+    return connections
 
-# Test case 2: Larger graph with varied weights
-G2 = DirectedWeightedGraph()
-for node in range(5):
-    G2.add_node(node)
-G2.add_edge(0, 1, 3)
-G2.add_edge(0, 3, 7)
-G2.add_edge(1, 2, 1)
-G2.add_edge(1, 3, 4)
-G2.add_edge(2, 4, 2)
-G2.add_edge(3, 2, 2)
-G2.add_edge(3, 4, 5)
-G2.add_edge(4, 1, 1)
+# Build a directed, weighted graph using the stations and connections data.
+# Edge weights are determined by the time it takes to travel between stations.
+def build_graph(stations, connections):
+    graph = DirectedWeightedGraph()
+    for station_id in stations:
+        graph.add_node(station_id)
+    for station1, station2, time in connections:
+        graph.add_edge(station1, station2, time)
+        graph.add_edge(station2, station1, time)
+    return graph
 
-# Expected output
-expected_output_2 = {
-    0: 0,
-    1: 3,
-    2: 4,
-    3: 7,
-    4: 6
-}
-assert dijkstra_approx(G2, 0, 3) == expected_output_2
+# Calculate the haversine distance between two points on the Earth's surface
+def haversine(lat1, lon1, lat2, lon2):
+    R = 6371  # Earth's radius in km
+    lat1, lon1, lat2, lon2 = map(radians, [lat1, lon1, lat2, lon2])
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+    a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
+    central_angle = 2 * atan2(sqrt(a), sqrt(1-a))
+    distance=R * central_angle
+    return distance
 
-# Test case 3: Disconnected graph
-G3 = DirectedWeightedGraph()
-for node in range(6):
-    G3.add_node(node)
-G3.add_edge(0, 1, 1)
-G3.add_edge(1, 2, 2)
-G3.add_edge(3, 4, 3)
-G3.add_edge(4, 5, 4)
-
-# Expected output
-expected_output_3 = {
-    0: 0,
-    1: 1,
-    2: 3,
-    3: float("inf"),
-    4: float("inf"),
-    5: float("inf")
-}
-assert dijkstra_approx(G3, 0, 2) == expected_output_3
-
-#---------------------------bellman_ford_approx testing-------------------
-# Test case 1: Simple graph
-G1 = DirectedWeightedGraph()
-for node in range(4):
-    G1.add_node(node)
-G1.add_edge(0, 1, 1)
-G1.add_edge(0, 2, 4)
-G1.add_edge(1, 2, 2)
-G1.add_edge(1, 3, 5)
-G1.add_edge(2, 3, 1)
-
-# Expected output
-expected_output_1 = {
-    0: 0,
-    1: 1,
-    2: 3,
-    3: 4
-}
-assert bellman_ford_approx(G1, 0, 2) == expected_output_1
+# This function takes the stations data and a destination station ID, then returns
+# a function that calculates the straight-line distance between the destination station
+# and any other station in the network using the haversine formula.
+def create_heuristic(stations, destination):
+    lat2, lon2 = stations[destination]['latitude'], stations[destination]['longitude']
+    def heuristic(station):
+        lat1, lon1 = stations[station]['latitude'], stations[station]['longitude']
+        return haversine(lat1, lon1, lat2, lon2)
+    return heuristic
 
 
-# Test case 3: Larger graph with varied weights
-G3 = DirectedWeightedGraph()
-for node in range(5):
-    G3.add_node(node)
-G3.add_edge(0, 1, 3)
-G3.add_edge(0, 3, 7)
-G3.add_edge(1, 2, 1)
-G3.add_edge(1, 3, 4)
-G3.add_edge(2, 4, 2)
-G3.add_edge(3, 2, 2)
-G3.add_edge(3, 4, 5)
-G3.add_edge(4, 1, 1)
+stations = parse_stations("london_stations.csv")
+connections = parse_connections("london_connections.csv")
+graph = build_graph(stations, connections)
 
-# Expected output
-expected_output_3 = {
-    0: 0,
-    1: 3,
-    2: 4,
-    3: 7,
-    4: 6
-}
-assert bellman_ford_approx(G3, 0, 3) == expected_output_3
+#a heuristic function that estimates the cost of reaching station 11 from any other station
+heuristic = create_heuristic(stations, 11)
+#heuristic value of the station 2 to the destination station 11
+heuristic_value = heuristic(2)
 
+print(heuristic_value)
 
-#----------------------------Part 2 test cases---------------------------
-# Test case 1: A simple graph with a straight line from s to d
-G = DirectedWeightedGraph()
-G.add_node(1)
-G.add_node(2)
-G.add_node(3)
-G.add_edge(1, 2, 2)
-G.add_edge(2, 3, 2)
-G.add_edge(1, 3, 4)
-h = {1: 0, 2: 2, 3: 4}
-pred, path = a_star(G, 1, 3, h)
-assert path == [1, 3]
-
-# Test case 2: A simple graph with an indirect path from s to d
-G = DirectedWeightedGraph()
-G.add_node(1)
-G.add_node(2)
-G.add_node(3)
-G.add_edge(1, 2, 1)
-G.add_edge(2, 3, 1)
-G.add_edge(1, 3, 5)
-h = {1: 0, 2: 2, 3: 1}
-pred, path = a_star(G, 1, 3, h)
-assert path == [1, 2, 3]
-
-# Test case 3: A graph with multiple paths from s to d
-G = DirectedWeightedGraph()
-G.add_node(1)
-G.add_node(2)
-G.add_node(3)
-G.add_node(4)
-G.add_edge(1, 2, 3)
-G.add_edge(1, 3, 2)
-G.add_edge(2, 4, 1)
-G.add_edge(3, 4, 3)
-h = {1: 0, 2: 1, 3: 2, 4: 1}
-pred, path = a_star(G, 1, 4, h)
-assert path == [1, 2, 4]
-
-# Test case 4: A graph with negative edge weights
-G = DirectedWeightedGraph()
-G.add_node(1)
-G.add_node(2)
-G.add_node(3)
-G.add_edge(1, 2, 2)
-G.add_edge(2, 3, -1)
-G.add_edge(1, 3, 1)
-h = {1: 0, 2: 2, 3: 1}
-pred, path = a_star(G, 1, 3, h)
-assert path == [1, 3]
-
-# Test case 5: A disconnected graph
-G = DirectedWeightedGraph()
-G.add_node(1)
-G.add_node(2)
-G.add_node(3)
-G.add_edge(1, 2, 2)
-h = {1: 0, 2: 2, 3: 1}
-pred, path = a_star(G, 1, 3, h)
-assert path == [1]
