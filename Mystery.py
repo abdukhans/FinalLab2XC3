@@ -54,7 +54,6 @@ def run_neg_tests(algo,string):
 
 
 def run_time_tests(num_runs):
-
     x = []
     y = []
     for size in tqdm(range (2,num_runs+1)):
@@ -98,6 +97,7 @@ def run_log_test (x,y):
 max_size = 60
 
 
+#------------- FIgM.1 ----------------
 #print ("\n----------\n\n",run_Dijkstra_test(max_size,max_size), "\n\n----------")
 
 
@@ -105,12 +105,15 @@ num_nodes = 4
 max_upper = 2
 min_lower = -1
 
-#run_neg_tests(fp.dijkstra,"Dijkstra")
 
-#run_neg_tests(fp.bellman_ford,"BellManFord")
+
+#------------- FigM.2 FigM.3 ----------------
+run_neg_tests(fp.bellman_ford,"BellManFord")
+
 
 
 (x,y) = run_time_tests(100)
+
 
 
 run_log_test(x,y)
